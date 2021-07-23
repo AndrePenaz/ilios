@@ -61,9 +61,16 @@ print(result["outputs"]["monthly"][0]["year"])
 class MonthlyData(object):
     """Monthly data object"""
 
-    def __init__(self):
+    def __init__(self, lat, lon, start_year, end_year, database, angle, option):
         """Constructor"""
-        pass
+        # Initialization :
+        self.latitude(lat)
+        self.longitude(lon)
+        self.start_year(start_year)
+        self.end_year(end_year)
+        self.database(database)
+        self.angle(angle)
+        self.option(option)
 
     @property
     def latitude(self):
@@ -89,14 +96,70 @@ class MonthlyData(object):
         """Set the longitude of the site"""
         self._lon = lon
 
-    def get_url(self, lat, lon, start_year, end_year, database):
+    @property
+    def start_year(self):
+        """Return the start year for the data"""
+        # Output :
+        return self._start_year
+
+    @start_year.setter
+    def start_year(self, start_year):
+        """Set the start year for the data"""
+        self._start_year = start_year
+
+    @property
+    def end_year(self):
+        """Return the end year for the data"""
+        # Output :
+        return self._end_year
+
+    @end_year.setter
+    def end_year(self, end_year):
+        """Set the end year for the data"""
+        self._end_year = end_year
+
+    @property
+    def database(self):
+        """Return the database"""
+        # Output :
+        return self._database
+
+    @database.setter
+    def database(self, database):
+        """Set the database"""
+        self._database = database
+
+    @property
+    def angle(self):
+        """Return the angle value"""
+        # Output :
+        return self._angle
+
+    @angle.setter
+    def angle(self, angle):
+        """Set the angle value"""
+        self._angle = angle
+
+    @property
+    def option(self):
+        """Return the option"""
+        # Output :
+        return self._option
+
+    @option.setter
+    def option(self, option):
+        """Set the option"""
+        self._option = option
+
+    def get_url(self):
         # Base url :
         base_url = 'https://re.jrc.ec.europa.eu/api/MRcalc?'
 
         url_m = "lat={0}&lon={1}&startyear={2}&endyear={3}&raddatabase={4}&angle={5}&" \
                 "browser=1&outputformat=json&select_database_month={4}&mstartyear={2}&" \
                 "mendyear={3}&horirrad={6}&mr_dni={7}&optrad={8}&selectrad={9}&mangle={5}&" \
-                "avtemp={10}".format(lat, lon, start_year, end_year, database, angle, option_horirrad,
+                "avtemp={10}".format(self._lat, self._lon, self._start_year, self._end_year,
+                                     self._database, self._angle, option_horirrad,
                                      option_mr_dni, option_optrad, option_selectrad, option_temp)
         # Url :
         url = base_url + url_m
@@ -113,6 +176,27 @@ class MonthlyData(object):
         result = json.loads(r.text)
 
         print(r.text)
+
+        # Insert the data into the pandas Dataframe :
+        data = pd.DataFrame()
+
+        # Initialization :
+        _years_col = []
+        _month_col = []
+        _H_hor_col = []
+        _H_opt_col = []
+        _H_i_col = []
+
+        for i in len(result["outputs"]["monthly"][0]["year"]):
+            _years_col.append(result["outputs"]["monthly"][i]["year"])
+            _month_col.append(result["outputs"]["monthly"][i]["month"])
+            _H_hor_col.append(result["outputs"]["monthly"][i]["H(h)_m"])
+            _H_opt_col.append(result["outputs"]["monthly"][i]["H(i_opt)_m"])
+            _H_i_col.append(result["outputs"]["monthly"][i]["H(i)_m"])
+
+    def __str__(self):
+        """Print method"""
+        pass
 
 class DailyData(object):
     """Daily data class"""

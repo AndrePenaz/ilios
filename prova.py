@@ -1,4 +1,5 @@
 import requests
+import numpy as np
 import pandas as pd
 import json
 
@@ -24,7 +25,7 @@ angle = 45
 out_format = 'json'
 
 # Option horizontal irradiance :
-option_horirrad=1
+option_horirrad = 1
 
 # Option direct irradiance :
 option_mr_dni = 1
@@ -58,10 +59,11 @@ result = json.loads(r.text)
 
 print(result["outputs"]["monthly"])
 
+
 class MonthlyData(object):
     """Monthly data object"""
 
-    def __init__(self, lat, lon, start_year, end_year, database, angle, option):
+    def __init__(self, lat, lon, start_year=2005, end_year=2005, database='PVGIS-SARAH', angle=0, **kwargs):
         """Constructor"""
         # Initialization :
         self._lat = lat
@@ -70,7 +72,18 @@ class MonthlyData(object):
         self._end_year = end_year
         self._database = database
         self._angle = angle
-        self._option = option
+
+        # Default options :
+        _options = {'hor_irrad': 1, 'mr_dni': 1, 'opt_rad': 1, 'select_rad': 1, 'temp': 1}
+
+        # Difference :
+        diff = set(kwargs.keys()) - set(_options.keys())
+        if diff:
+            print("Wrong input option")
+
+        # Update the options' dictionary :
+        _options.update(kwargs)
+        self._options = _options
 
     @property
     def latitude(self):
@@ -144,12 +157,18 @@ class MonthlyData(object):
     def option(self):
         """Return the option"""
         # Output :
-        return self._option
+        return self._options
 
     @option.setter
-    def option(self, option):
+    def option(self, **kwargs):
         """Set the option"""
-        self._option = option
+        # Difference :
+        diff = set(kwargs.keys()) - set(self._options.keys())
+        if diff:
+            print("Wrong input option")
+
+        # Update the options' dictionary :
+        self._options.update(kwargs)
 
     def get_url(self):
         # Base url :
@@ -159,8 +178,9 @@ class MonthlyData(object):
                 "browser=1&outputformat=json&select_database_month={4}&mstartyear={2}&" \
                 "mendyear={3}&horirrad={6}&mr_dni={7}&optrad={8}&selectrad={9}&mangle={5}&" \
                 "avtemp={10}".format(self._lat, self._lon, self._start_year, self._end_year,
-                                     self._database, self._angle, option_horirrad,
-                                     option_mr_dni, option_optrad, option_selectrad, option_temp)
+                                     self._database, self._angle, self._options["hor_irrad"],
+                                     self._options["mr_dni"], self._options["opt_rad"],
+                                     self._options["select_rad"], self._options["temp"])
         # Url :
         url = base_url + url_m
 
@@ -177,29 +197,31 @@ class MonthlyData(object):
 
         print(r.text)
 
-        # Insert the data into the pandas Dataframe :
-        data = pd.DataFrame()
+        # Number of rows :
+        _nRows = len(result["outputs"]["monthly"])
 
         # Initialization :
-        _years_col = []
-        _month_col = []
-        _H_hor_col = []
-        _H_opt_col = []
-        _H_i_col = []
+        _data = np.zeros((_nRows, 7))
 
         for i in range(0, len(result["outputs"]["monthly"])):
-            _years_col.append(result["outputs"]["monthly"][i]["year"])
-            _month_col.append(result["outputs"]["monthly"][i]["month"])
-            _H_hor_col.append(result["outputs"]["monthly"][i]["H(h)_m"])
-            _H_opt_col.append(result["outputs"]["monthly"][i]["H(i_opt)_m"])
-            _H_i_col.append(result["outputs"]["monthly"][i]["H(i)_m"])
+            _data[i][0] = (result["outputs"]["monthly"][i]["year"])
+            _data[i][1] = (result["outputs"]["monthly"][i]["month"])
+            _data[i][2] = (result["outputs"]["monthly"][i]["H(h)_m"])
+            _data[i][3] = (result["outputs"]["monthly"][i]["H(i_opt)_m"])
+            _data[i][4] = (result["outputs"]["monthly"][i]["H(i)_m"])
+            _data[i][5] = (result["outputs"]["monthly"][i]["Hb(n)_m"])
+            _data[i][6] = (result["outputs"]["monthly"][i]["T2m"])
+
+        # Insert the data into the pandas Dataframe :
+        data = pd.DataFrame(_data, columns=["year", "month", "H_hor", "H_opt", "H(i)", "Hb", "T_m"])
 
         # Output :
-        return _years_col
+        return data
 
     def __str__(self):
         """Print method"""
         pass
+
 
 class DailyData(object):
     """Daily data class"""
@@ -211,6 +233,6 @@ class DailyData(object):
 if __name__ == '__main__':
 
     # Define a monthlydata object :
-    m = MonthlyData(45, 9, 2010, 2011, 'PVGIS-SARAH', 45, 10)
+    m = MonthlyData(45, 9, 2010, 2011, 'PVGIS-SARAH', 45)
     url = m.get_url()
     print(m.get_data(url))

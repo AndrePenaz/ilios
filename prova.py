@@ -56,7 +56,7 @@ print(r.text)
 
 result = json.loads(r.text)
 
-print(result["outputs"]["monthly"][0]["year"])
+print(result["outputs"]["monthly"])
 
 class MonthlyData(object):
     """Monthly data object"""
@@ -64,13 +64,13 @@ class MonthlyData(object):
     def __init__(self, lat, lon, start_year, end_year, database, angle, option):
         """Constructor"""
         # Initialization :
-        self.latitude(lat)
-        self.longitude(lon)
-        self.start_year(start_year)
-        self.end_year(end_year)
-        self.database(database)
-        self.angle(angle)
-        self.option(option)
+        self._lat = lat
+        self._lon = lon
+        self._start_year = start_year
+        self._end_year = end_year
+        self._database = database
+        self._angle = angle
+        self._option = option
 
     @property
     def latitude(self):
@@ -187,12 +187,15 @@ class MonthlyData(object):
         _H_opt_col = []
         _H_i_col = []
 
-        for i in len(result["outputs"]["monthly"][0]["year"]):
+        for i in range(0, len(result["outputs"]["monthly"])):
             _years_col.append(result["outputs"]["monthly"][i]["year"])
             _month_col.append(result["outputs"]["monthly"][i]["month"])
             _H_hor_col.append(result["outputs"]["monthly"][i]["H(h)_m"])
             _H_opt_col.append(result["outputs"]["monthly"][i]["H(i_opt)_m"])
             _H_i_col.append(result["outputs"]["monthly"][i]["H(i)_m"])
+
+        # Output :
+        return _years_col
 
     def __str__(self):
         """Print method"""
@@ -204,3 +207,10 @@ class DailyData(object):
     def __init__(self):
         """Constructor"""
         pass
+
+if __name__ == '__main__':
+
+    # Define a monthlydata object :
+    m = MonthlyData(45, 9, 2010, 2011, 'PVGIS-SARAH', 45, 10)
+    url = m.get_url()
+    print(m.get_data(url))

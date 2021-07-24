@@ -15,6 +15,9 @@ class MonthlyData(object):
         # Longitude :
         self._lon = lon
 
+        # Elevation :
+        self._elevation = np.NaN
+
         # First and last year of the data :
         self._start_year = start_year
         self._end_year = end_year
@@ -25,8 +28,10 @@ class MonthlyData(object):
         if database not in _database_option:
             print("Wrong databse")
 
+        # Assignment :
         self._database = database
 
+        # Angle :
         self._angle = angle
 
         # Default options :
@@ -64,6 +69,11 @@ class MonthlyData(object):
     def longitude(self, lon):
         """Set the longitude of the site"""
         self._lon = lon
+
+    @property
+    def elevation(self):
+        """Return the elevation of the site"""
+        self._elevation
 
     @property
     def start_year(self):
@@ -160,6 +170,9 @@ class MonthlyData(object):
         result = json.loads(r.text)
 
         print(r.text)
+
+        # Elevation :
+        self._elevation = result["inputs"]["location"]["elevation"]
 
         # Number of rows :
         _nRows = len(result["outputs"]["monthly"])
@@ -327,7 +340,7 @@ class DailyData(object):
                 "clearsky={8}&dangle={3}&daspect={4}&global_2axis={8}&clearsky_2axis={9}&" \
                 "showtemperatures={10}".format(self._lat, self._lon, self._database, self._slope, self._azimuth,
                                      self._month, self._options["localtime"], self._options["global"], self._options["clearsky"],
-                                     self._options["global_2axis"], self._options["clearsky_2axis"])
+                                     self._options["glob_2axis"], self._options["clearsky_2axis"])
 
         # Url :
         url = base_url + url_m
@@ -345,6 +358,71 @@ class DailyData(object):
 
         print(r.text)
 
+        # Elevation :
+        self._elevation = result["inputs"]["location"]["elevation"]
+
+        # Number of rows :
+        _nRows = len(result["outputs"]["daily_profile"])
+
+        # Initialization :
+        _month_col, _time_col, _G_i, _Gb, _Gd, _Gcs_i, _Gcs_n, _T2m = ([] for i in range(8))
+
+        for i in range(0, _nRows):
+            _month_col.append(result["outputs"]["daily_profile"][i]["month"])
+            _time_col.append(result["outputs"]["daily_profile"][i]["time"])
+            _G_i.append(result["outputs"]["daily_profile"][i]["G(i)"])
+            _Gb.append(result["outputs"]["daily_profile"][i]["Gb(i)"])
+            _Gd.append(result["outputs"]["daily_profile"][i]["Gd(i)"])
+            _Gcs_i.append(result["outputs"]["daily_profile"][i]["Gcs(i)"])
+            _Gcs_n.append(result["outputs"]["daily_profile"][i]["Gcs(n)"])
+            _T2m.append(result["outputs"]["daily_profile"][i]["T2m"])
+
+        _data = {"month": _month_col, "time": _time_col, "G_i": _G_i, "Gb": _Gb,
+                 "Gd": _Gd, "Gcs_i": _Gcs_i, "Gcs_n": _Gcs_n, "Tm": _T2m}
+
+        # Insert the data into the pandas Dataframe :
+        data = pd.DataFrame(_data)
+
+        # Output :
+        return data
+
+    class HourlyData(object):
+        """Hourly data class"""
+
+        def __init__(self):
+            """Constructor"""
+            pass
+
+        def get_url(self):
+            """Return the url"""
+            # Base url :
+            base_url = 'https://re.jrc.ec.europa.eu/api/DRcalc?'
+
+            url_m = "lat={0}&lon={1}&raddatabase={2}&angle={3}&aspect{4}&browser=1&outputformat=json&" \
+                    "select_database_daily={2}&month={5}&localtime={6}&global={7}&" \
+                    "clearsky={8}&dangle={3}&daspect={4}&global_2axis={8}&clearsky_2axis={9}&" \
+                    "showtemperatures={10}".format(self._lat, self._lon, self._database, self._slope, self._azimuth,
+                                                   self._month, self._options["localtime"], self._options["global"],
+                                                   self._options["clearsky"],
+                                                   self._options["glob_2axis"], self._options["clearsky_2axis"])
+
+            # Url :
+            url = base_url + url_m
+
+            # Output :
+            return url
+
+        class TMY(object):
+            """Typical Meteorogical Year class"""
+
+            def __init__(self):
+                """Constructor"""
+                pass
+
+            def get_url(self):
+                """Return the url"""
+                pass
+
 
 if __name__ == '__main__':
 
@@ -352,3 +430,9 @@ if __name__ == '__main__':
     m = MonthlyData(45, 9, 2010, 2011, 'PVGIS-SARAH', 45)
     url = m.get_url()
     print(m.get_data(url))
+
+    # Define a daily data object :
+    d = DailyData(45, 9, 6, 30, 0, 'PVGIS-SARAH')
+    url = d.get_url()
+    print(d.get_data(url))
+

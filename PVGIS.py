@@ -3,7 +3,47 @@ import numpy as np
 import pandas as pd
 import json
 
-class MonthlyData(object):
+class PVGISData(object):
+    """PVGIS data class"""
+
+    def __init__(self):
+        """Constructor"""
+        pass
+
+    @property
+    def latitude(self):
+        """Return the latitude of the site"""
+        # Output :
+        return self._lat
+
+    @latitude.setter
+    def latitude(self, lat):
+        """Set the latitude of the site"""
+        # Check :
+        if lat > 90 or lat < -90:
+            raise ValueError("Wrong value for lat")
+
+        # Assignment :
+        self._lat = lat
+
+    @property
+    def longitude(self):
+        """Return the longitude of the site"""
+        # Output :
+        return self._lon
+
+    @longitude.setter
+    def longitude(self, lon):
+        """Set the longitude of the site"""
+        # Check :
+        if lon < 0 or lon > 360:
+            raise ValueError("Worng value for lon")
+
+        # Assignment :
+        self._lon = lon
+
+
+class MonthlyData(PVGISData):
     """Monthly data object"""
 
     def __init__(self, lat, lon, start_year=2005, end_year=2005, database='PVGIS-SARAH', angle=0, **kwargs):
@@ -45,30 +85,6 @@ class MonthlyData(object):
         # Update the options' dictionary :
         _options.update(kwargs)
         self._options = _options
-
-    @property
-    def latitude(self):
-        """Return the latitude of the site"""
-        # Output :
-        return self._lat
-
-    @latitude.setter
-    def latitude(self, lat):
-        """Set the latitude of the site"""
-        # Check :
-
-        self._lat = lat
-
-    @property
-    def longitude(self):
-        """Return the longitude of the site"""
-        # Output :
-        return self._lon
-
-    @longitude.setter
-    def longitude(self, lon):
-        """Set the longitude of the site"""
-        self._lon = lon
 
     @property
     def elevation(self):
@@ -200,7 +216,7 @@ class MonthlyData(object):
         pass
 
 
-class DailyData(object):
+class DailyData(PVGISData):
     """Daily data class"""
 
     def __init__(self, lat, lon, month, slope, azimuth, database, **kwargs):
@@ -235,30 +251,6 @@ class DailyData(object):
         # Update the options' dictionary :
         _options.update(kwargs)
         self._options = _options
-
-    @property
-    def latitude(self):
-        """Return the latitude of the site"""
-        # Output :
-        return self._lat
-
-    @latitude.setter
-    def latitude(self, lat):
-        """Set the latitude of the site"""
-        # Check :
-
-        self._lat = lat
-
-    @property
-    def longitude(self):
-        """Return the longitude of the site"""
-        # Output :
-        return self._lon
-
-    @longitude.setter
-    def longitude(self, lon):
-        """Set the longitude of the site"""
-        self._lon = lon
 
     @property
     def month(self):
@@ -386,42 +378,303 @@ class DailyData(object):
         # Output :
         return data
 
-    class HourlyData(object):
-        """Hourly data class"""
 
-        def __init__(self):
-            """Constructor"""
-            pass
+class HourlyData(PVGISData):
+    """Hourly data class"""
 
-        def get_url(self):
-            """Return the url"""
-            # Base url :
-            base_url = 'https://re.jrc.ec.europa.eu/api/DRcalc?'
+    def __init__(self, lat, lon, slope=0, azimuth=0, start_year=2005, end_year=2005, database='PVGIS-SARAH',
+                 power=1, loss=14, **kwargs):
+        """Constructor"""
+        # Latitude and longitude :
+        self._lat, self._lon = lat, lon
 
-            url_m = "lat={0}&lon={1}&raddatabase={2}&angle={3}&aspect{4}&browser=1&outputformat=json&" \
-                    "select_database_daily={2}&month={5}&localtime={6}&global={7}&" \
-                    "clearsky={8}&dangle={3}&daspect={4}&global_2axis={8}&clearsky_2axis={9}&" \
-                    "showtemperatures={10}".format(self._lat, self._lon, self._database, self._slope, self._azimuth,
-                                                   self._month, self._options["localtime"], self._options["global"],
-                                                   self._options["clearsky"],
-                                                   self._options["glob_2axis"], self._options["clearsky_2axis"])
+        # Default database :
+        _database_option = ['PVGIS-SARAH', 'PVGIS-CMSAF', 'PVGIS-COSMO', 'PVGIS-ERA5']
 
-            # Url :
-            url = base_url + url_m
+        if database not in _database_option:
+            print("Wrong databse")
 
-            # Output :
-            return url
+        # Assignment :
+        self._database = database
 
-        class TMY(object):
-            """Typical Meteorogical Year class"""
+        # Slope and azimuth of the surface :
+        self._slope, self._azimuth = slope, azimuth
 
-            def __init__(self):
-                """Constructor"""
-                pass
+        # First and last year :
+        self._start_year = start_year
+        self._end_year = end_year
 
-            def get_url(self):
-                """Return the url"""
-                pass
+        # PV peak power :
+        self._power = power
+
+        # PV percentage loss :
+        self._loss = loss
+
+        # Default options :
+        _options = {'tracking': 0}
+
+        # Difference :
+        _diff = set(kwargs.keys()) - set(_options.keys())
+        if _diff:
+            print("Wrong input option")
+
+        # Update the options' dictionary :
+        _options.update(kwargs)
+        self._options = _options
+
+    @property
+    def slope(self):
+        """Return the slope of the surface"""
+        # Output :
+        return self._slope
+
+    @slope.setter
+    def slope(self, slope):
+        """Set the slope of the surface"""
+        # Check :
+        if slope < 0 or slope > 90:
+            raise ValueError("Wrong value for slope")
+
+        # Assignment :
+        self._slope = slope
+
+    @property
+    def azimuth(self):
+        """Return the azimuth of the surface"""
+        # Output :
+        return self._azimuth
+
+    @azimuth.setter
+    def azimuth(self, azimuth):
+        """Set the azimuth of the surface"""
+        # Check :
+        if azimuth < -180 or azimuth > 180:
+            raise ValueError("Wrong value for azimuth")
+
+        # Assignment :
+        self._azimuth = azimuth
+
+    @property
+    def power(self):
+        """Return the power of the PV plant"""
+        # Output :
+        return self._power
+
+    @power.setter
+    def power(self, power):
+        """Set the power of the PV plant"""
+        # Check :
+        if power <= 0:
+            raise ValueError("Wrong value for power")
+
+        # Assignment :
+        self._power = power
+
+    @property
+    def loss(self):
+        """Return the percentage of the PV loss"""
+        # Output :
+        return self._loss
+
+    @loss.setter
+    def loss(self, loss):
+        """Set the percentage of the PV loss"""
+        # Check :
+        if loss < 0 or loss > 100:
+            raise ValueError("Wrong value for loss")
+
+        # Assignment :
+        self._loss = loss
+
+    def get_url(self):
+        """"Return the url"""
+        # Base url :
+        base_url = 'https://re.jrc.ec.europa.eu/api/seriescalc?'
+
+        url_m = "lat={0}&lon={1}&raddatabase={2}&angle={3}&aspect{4}&startyear={5}&endyear={6}&" \
+                "browser=1&outputformat=json&usehorizon=1&mountingplace=free&optimalinclination=1&" \
+                "optimalangles=0&select_database_hourly={2}&hstartyear={5}&hendyear={6}&" \
+                "trackingtype={9}&hourlyangle={3}&hourlyoptimalinclination=1&hourlyaspect={4}&" \
+                "pvcalculation=1&pvtechchoice=crystSi&peakpower={7}&loss={8}&" \
+                "components=1&".format(self._lat, self._lon, self._database, self._slope, self._azimuth,
+                                       self._start_year, self._end_year, self._power, self._loss,
+                                       self._options["tracking"])
+
+        # Url :
+        url = base_url + url_m
+
+        # Output :
+        return url
+
+    def get_data(self, url):
+        """Return the data"""
+        # Request the base site :
+        r = requests.get(url)
+
+        # Json file :
+        result = json.loads(r.text)
+
+        print(r.text)
+
+        # Elevation :
+        self._elevation = result["inputs"]["location"]["elevation"]
+
+        # Number of rows :
+        _nRows = len(result["outputs"]["hourly"])
+
+        # Initialization :
+        _time, _P, _Gb, _Gd, _Gr, _H_sun, _T2m, _WS10m, _Int = ([] for i in range(9))
+
+        for i in range(0, _nRows):
+            _time.append(result["outputs"]["hourly"][i]["time"])
+            _P.append(result["outputs"]["hourly"][i]["P"])
+            _Gb.append(result["outputs"]["hourly"][i]["Gb(i)"])
+            _Gd.append(result["outputs"]["hourly"][i]["Gd(i)"])
+            _Gr.append(result["outputs"]["hourly"][i]["Gr(i)"])
+            _H_sun.append(result["outputs"]["hourly"][i]["H_sun"])
+            _T2m.append(result["outputs"]["hourly"][i]["T2m"])
+            _WS10m.append(result["outputs"]["hourly"][i]["WS10m"])
+            _Int.append(result["outputs"]["hourly"][i]["Int"])
+
+        _data = {"time": _time, "P": _P, "Gb": _Gb, "Gd": _Gd, "Gr": _Gr,
+                 "H_sun": _H_sun, "Tm": _T2m, "WS10m": _WS10m, "Int": _Int}
+
+        # Insert the data into the pandas Dataframe :
+        data = pd.DataFrame(_data)
+
+        # Output :
+        return data
+
+
+class TMY(object):
+    """Typical Meteorogical Year class"""
+
+    def __init__(self, lat, lon, start_year=2005, end_year=2014):
+        """Constructor"""
+        # Initialization :
+        # Latitude :
+        self._lat = lat
+
+        # Longitude :
+        self._lon = lon
+
+        # Elevation :
+        self._elevation = np.NaN
+
+        # First and last year of the data :
+        self._start_year = start_year
+        self._end_year = end_year
+
+        # Horizon :
+        self._horizon = 1
+
+    @property
+    def latitude(self):
+        """Return the latitude of the site"""
+        # Output :
+        return self._lat
+
+    @latitude.setter
+    def latitude(self, lat):
+        """Set the latitude of the site"""
+        # Check :
+        if lat > 90 or lat < -90:
+            raise ValueError("Wrong value for lat")
+
+        # Assignment :
+        self._lat = lat
+
+    @property
+    def longitude(self):
+        """Return the longitude of the site"""
+        # Output :
+        return self._lon
+
+    @longitude.setter
+    def longitude(self, lon):
+        """Set the longitude of the site"""
+        # Check :
+        if lon < 0 or lon > 360:
+            raise ValueError("Worng value for lon")
+
+        # Assignment :
+        self._lon = lon
+
+    @property
+    def start_year(self):
+        """Return the start year for the data"""
+        # Output :
+        return self._start_year
+
+    @start_year.setter
+    def start_year(self, start_year):
+        """Set the start year for the data"""
+        self._start_year = start_year
+
+    @property
+    def end_year(self):
+        """Return the end year for the data"""
+        # Output :
+        return self._end_year
+
+    @end_year.setter
+    def end_year(self, end_year):
+        """Set the end year for the data"""
+        self._end_year = end_year
+
+    def get_url(self):
+        """Return the url"""
+        # Base url :
+        base_url = 'https://re.jrc.ec.europa.eu/api/tmy?'
+
+        url_m = 'lat={0}&lon={1}&usehorizon={2}&browser=1&outputformat=json&startyear={3}&' \
+                'endyear={4}&period=2'.format(self._lat, self._lon, self._horizon, self._start_year, self._end_year)
+
+        url = base_url + url_m
+
+        # Output :
+        return url
+
+    def get_data(self, url):
+        """Return the data"""
+        # Request the base site :
+        r = requests.get(url)
+
+        # Json file :
+        result = json.loads(r.text)
+
+        print(r.text)
+
+        # Elevation :
+        self._elevation = result["inputs"]["location"]["elevation"]
+
+        # Number of rows :
+        _nRows = len(result["outputs"]["tmy_hourly"])
+
+        # Initialization :
+        _time, _T2m, _RH, _G, _Gb, _Gd, _IR, _ws10m, _wd10m, _sap  = ([] for i in range(10))
+
+        for i in range(0, _nRows):
+            _time.append(result["outputs"]["tmy_hourly"][i]["time(UTC)"])
+            _T2m.append(result["outputs"]["tmy_hourly"][i]["T2m"])
+            _RH.append(result["outputs"]["tmy_hourly"][i]["RH"])
+            _G.append(result["outputs"]["tmy_hourly"][i]["G(h)"])
+            _Gb.append(result["outputs"]["tmy_hourly"][i]["Gb(n)"])
+            _Gd.append(result["outputs"]["tmy_hourly"][i]["Gd(h)"])
+            _IR.append(result["outputs"]["tmy_hourly"][i]["IR(h)"])
+            _ws10m.append(result["outputs"]["tmy_hourly"][i]["WS10m"])
+            _wd10m.append(result["outputs"]["tmy_hourly"][i]["WD10m"])
+            _sap.append(result["outputs"]["tmy_hourly"][i]["SP"])
+
+        _data = {"time": _time, "Tm": _T2m, "RH": _RH, "G": _G,
+                 "Gb": _Gb, "Gd": _Gd, "IR": _IR, "ws10m": _ws10m, "wd10m": _wd10m,
+                 "sap": _sap}
+
+        # Insert the data into the pandas Dataframe :
+        data = pd.DataFrame(_data)
+
+        # Output :
+        return data
 
 
 if __name__ == '__main__':
@@ -435,4 +688,14 @@ if __name__ == '__main__':
     d = DailyData(45, 9, 6, 30, 0, 'PVGIS-SARAH')
     url = d.get_url()
     print(d.get_data(url))
+
+    # Define a TMY data object :
+    tmy = TMY(45, 9)
+    url = tmy.get_url()
+    print(tmy.get_data(url))
+
+    # Define a hourly data object :
+    h = HourlyData(45, 9, 45, 0)
+    url = h.get_url()
+    print(h.get_data(url))
 

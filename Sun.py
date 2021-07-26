@@ -225,9 +225,16 @@ def solar_azimuth(lat, lon, n, LST):
     # Output :
     return z
 
-def sunrise():
+def sunrise(lat, n):
     """Return the sunrise time"""
-    pass
+    # Declination :
+    delta = declination(n)
+
+    # Computation :
+    omega_s = 1/15*np.arccos(-np.tan(lat)*np.tan(delta))
+
+    # Output :
+    return omega_s
 
 def sunset():
     """Return the sunset time"""

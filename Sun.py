@@ -1,4 +1,5 @@
 import numpy as np
+import matplotlib.pyplot as plt
 
 class SolarDiagram(object):
     """Solar Diagram class"""
@@ -62,8 +63,28 @@ class SolarDiagram(object):
             # Solar azimuth :
             _azimuth[_i] = solar_azimuth(self._lat, self._lon, day, _i)
 
-    def plot(self, months=all):
-        pass
+        # Output :
+        return (_altitude, _azimuth)
+
+    def plot(self, days, nPoints):
+        """Plot the solar path for the specified days"""
+        # Check :
+        if type(days) != list:
+            raise TypeError("Wrong type for days")
+
+        # Initialize the figure :
+
+
+        # Solar paths :
+        for _i in days:
+            _altitude, _azimuth = self._solar_day_path(_i, nPoints)
+
+            # Plot _
+            plt.plot(_azimuth, _altitude)
+
+        # Show :
+        plt.show()
+
 
 # Solar constant :
 G_sc = 1352                          # [W/m^2]
@@ -77,11 +98,23 @@ def extra_radiation(n):
     # Computation :
     B = (n-1)*360/365
 
-    G = G_sc*(1.000110 + 0.034221*np.cos(B) + 0.001280*np.sin(B) +
-              0.00719*np.cos(2*B) + 0.000077*np.sin(2*B))
+    G = G_sc*(1.000110 + 0.034221*np.cos(np.deg2rad(B)) + 0.001280*np.sin(np.deg2rad(B)) +
+              0.00719*np.cos(2*np.deg2rad(B)) + 0.000077*np.sin(2*np.deg2rad(B)))
 
     # Output :
     return G
+
+def date2n(day, month):
+    """Return the number of the day in the year from the data"""
+    # Check :
+
+    months_days = (31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31)
+
+    # Computation :
+    n = sum(months_days[0:month-1]) + day
+
+    # Output :
+    return n
 
 def equation_time(n):
     """Compute the equation of time"""
@@ -92,8 +125,8 @@ def equation_time(n):
     # Computation :
     B = (n - 1) * 360 / 365
 
-    E = 229.2*(0.000075  0.001868*np.cos(B) - 0.032077*np.sin(B) -
-        0.014615*np.cos(2*B) - 0.04089*np.sin(2*B))
+    E = 229.2*(0.000075 + 0.001868*np.cos(np.deg2rad(B)) - 0.032077*np.sin(np.deg2rad(B)) -
+        0.014615*np.cos(2*np.deg2rad(B)) - 0.04089*np.sin(2*np.deg2rad(B)))
 
     # Output :
     return E
@@ -105,7 +138,7 @@ def declination(n):
         raise ValueError("Wrong value for n")
 
     # Computation :
-    delta = 23.45*np.sin(360*(284+n)/365)
+    delta = 23.45*np.sin(np.deg2rad(360*(284+n)/365))
 
     # Output :
     return delta
@@ -126,17 +159,17 @@ def spencer(n):
     # Output :
     return delta
 
-def AST(LST, lon, n):
+def AST(LST, lon, n, DS=0):
     """Return the apparent solar time for the specified location"""
     # Check :
-    if type(LST) != tuple:
+    if type(LST) not in (tuple, int, float):
         raise TypeError("Wrong type for LST")
 
-    if len(LST) != 2:
+    if type(LST) == tuple and len(LST) != 2:
         raise ValueError("LST must have 2 elements")
 
     if lon < 0:
-        lon = 360 - lon
+        lon = 360 + lon
 
     if lon > 360:
         raise ValueError("Wrong value for lon")
@@ -145,39 +178,35 @@ def AST(LST, lon, n):
         raise ValueError("Wrong value for n")
 
     # Equation of time :
-    ET = equation_time(n)                    # [h]
+    ET = equation_time(n)                    # [min]
+    print(ET)
 
     # Convert the Local solar time :
-    LST = LST[0] + LST[1]/60                 # [h]
+    if type(LST) == tuple:
+        LST = LST[0] + LST[1]/60                 # [h]
+
+    # Standard longitude :
+    lon_s = 15*np.ceil(lon/15)
+    print(lon_s)
 
     # Computation :
-    AST = LST + ET + 4*(lon_s - lon) - DS
+    AST = LST + ET/60 - 4/60*(lon_s - lon) - DS*1
 
     # Output :
     return AST
 
-def hour_angle(LST, lon, n):
+def hour_angle(LST, lon, n, DS=0):
     """Return the hour angle at the specified location"""
-    # Check :
-    if lon < 0:
-        lon = 360 - lon
-
-    if lon > 360:
-        raise ValueError("Wrong value for lon")
-
-    if n < 0 or n > 365:
-        raise ValueError("Wrong value for n")
-
     # Apparent solar time :
-    AST = AST(LST, lon, n)
+    AST_n = AST(LST, lon, n, DS)
 
     # Computation :
-    omega = (AST - 12)*15
+    omega = 15*(AST_n - 12)
 
     # Output :
     return omega
 
-def solar_altitude(lat, lon, n, LST):
+def solar_altitude(lat, lon, n, LST, DS=0):
     """Return the altitude of the sun"""
     # Check :
     if lat < -90 or lat > 90:
@@ -190,18 +219,19 @@ def solar_altitude(lat, lon, n, LST):
     delta = declination(n)
 
     # Hour angle :
-    omega = hour_angle(LST, lon, n)
+    omega = hour_angle(LST, lon, n, DS=0)
 
     # Computation :
-    alpha = np.arcsin(np.sin(lat)*np.sin(delta) + np.cos(lat)*np.cos(delta)*np.cos(omega))
+    alpha = np.rad2deg(np.arcsin(np.sin(np.deg2rad(lat))*np.sin(np.deg2rad(delta))
+                      + np.cos(np.deg2rad(lat))*np.cos(np.deg2rad(delta))*np.cos(np.deg2rad(omega))))
 
     # Output :
     return alpha
 
-def solar_zenith(lat, lon, n, LST):
+def solar_zenith(lat, lon, n, LST, DS=0):
     """Return the zenith angle of the sun"""
     # Computation :
-    alpha = solar_altitude(lat,lon, n, LST)
+    alpha = solar_altitude(lat,lon, n, LST, DS=0)
     
     phi = 90 - alpha
 
@@ -220,7 +250,7 @@ def solar_azimuth(lat, lon, n, LST):
     alpha = solar_altitude(lat, lon, n, LST)
 
     # Computation :
-    z = np.arcsin(np.sin(delta)*np.sin(h)/np.cos(alpha))
+    z = np.rad2deg(np.arcsin(np.cos(np.deg2rad(delta))*np.sin(np.deg2rad(omega))/np.cos(np.deg2rad(alpha))))
 
     # Output :
     return z
@@ -231,7 +261,7 @@ def sunrise(lat, n):
     delta = declination(n)
 
     # Computation :
-    omega_s = 1/15*np.arccos(-np.tan(lat)*np.tan(delta))
+    omega_s = 1/15*np.arccos(-np.tan(np.deg2rad(lat))*np.tan(np.deg2rad(delta)))
 
     # Output :
     return omega_s
@@ -260,11 +290,26 @@ def incident_angle(lat, lon, n, LST, slope, azimuth_s):
     omega = hour_angle(LST, lon, n)
 
     # Incidence angle :
-    theta = np.arccos(np.sin(lat)*np.sin(omega)*np.cos(slope) -
-                      np.cos(lat)*np.sin(delta)*np.sin(slope)*np.cos(azimuth_s) +
-                      np.cos(lat)*np.cos(delta)*np.cos(omega)*np.cos(slope) +
-                      np.sin(lat)*np.cos(delta)*np.cos(omega)*np.cos(slope)*np.cos(azimuth_s) +
-                      np.cos(delta)*np.sin(omega)*np.sin(slope)*np.sin(azimuth_s))
+    theta = np.rad2deg(np.arccos(np.sin(np.deg2rad(lat))*np.sin(np.deg2rad(delta))*np.cos(np.deg2rad(slope)) -
+                      np.cos(np.deg2rad(lat))*np.sin(np.deg2rad(delta))*np.sin(np.deg2rad(slope))*np.cos(np.deg2rad(azimuth_s)) +
+                      np.cos(np.deg2rad(lat))*np.cos(np.deg2rad(delta))*np.cos(np.deg2rad(omega))*np.cos(np.deg2rad(slope)) +
+                      np.sin(np.deg2rad(lat))*np.cos(np.deg2rad(delta))*np.cos(np.deg2rad(omega))*np.sin(np.deg2rad(slope))*np.cos(np.deg2rad(azimuth_s)) +
+                      np.cos(np.deg2rad(delta))*np.sin(np.deg2rad(omega))*np.sin(np.deg2rad(slope))*np.sin(np.deg2rad(azimuth_s))))
+
+    print("Latitude")
+    print(lat)
+
+    print("Declination :")
+    print(delta)
+
+    print("Slope :")
+    print(slope)
+
+    print("Azimuth :")
+    print(azimuth_s)
+
+    print("Omega :")
+    print(omega)
 
     # Output :
     return theta

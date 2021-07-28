@@ -56,12 +56,23 @@ class SolarDiagram(object):
         _altitude = np.zeros(nPoints)
         _azimuth = np.zeros(nPoints)
 
+        # Sunrise :
+        _h_sr = sunrise(self._lat, day)
+        _omega_sr = hour_angle(_h_sr, self._lon, day)
+
+        # Sunset :
+        _h_ss = sunset(self._lat, day)
+        _omega_ss = hour_angle(_h_ss, self._lon, day)
+
+        # Hour vector :
+        _hh = np.linspace(_h_sr, _h_ss, num=nPoints)
+
         for _i in range(nPoints):
             # Solar altitude :
-            _altitude[_i] = solar_altitude(self._lat, self._lon, day, _i)
+            _altitude[_i] = solar_altitude(self._lat, self._lon, day, _hh[_i])
 
             # Solar azimuth :
-            _azimuth[_i] = solar_azimuth(self._lat, self._lon, day, _i)
+            _azimuth[_i] = solar_azimuth3(self._lat, self._lon, day, _hh[_i])
 
         # Output :
         return (_altitude, _azimuth)
@@ -78,7 +89,7 @@ class SolarDiagram(object):
         # Solar paths :
         for _i in days:
             _altitude, _azimuth = self._solar_day_path(_i, nPoints)
-
+            print(_altitude)
             # Plot _
             plt.plot(_azimuth, _altitude)
 
@@ -162,7 +173,7 @@ def spencer(n):
 def AST(LST, lon, n, DS=0):
     """Return the apparent solar time for the specified location"""
     # Check :
-    if type(LST) not in (tuple, int, float):
+    if type(LST) not in (tuple, int, float, np.float64, np.int):
         raise TypeError("Wrong type for LST")
 
     if type(LST) == tuple and len(LST) != 2:
@@ -179,7 +190,6 @@ def AST(LST, lon, n, DS=0):
 
     # Equation of time :
     ET = equation_time(n)                    # [min]
-    print(ET)
 
     # Convert the Local solar time :
     if type(LST) == tuple:
@@ -187,7 +197,6 @@ def AST(LST, lon, n, DS=0):
 
     # Standard longitude :
     lon_s = 15*np.ceil(lon/15)
-    print(lon_s)
 
     # Computation :
     AST = LST + ET/60 - 4/60*(lon_s - lon) - DS*1
@@ -225,6 +234,10 @@ def solar_altitude(lat, lon, n, LST, DS=0):
     alpha = np.rad2deg(np.arcsin(np.sin(np.deg2rad(lat))*np.sin(np.deg2rad(delta))
                       + np.cos(np.deg2rad(lat))*np.cos(np.deg2rad(delta))*np.cos(np.deg2rad(omega))))
 
+    # Condition of the Sun under the horizon :
+    if alpha < 0:
+        alpha = 0
+
     # Output :
     return alpha
 
@@ -243,32 +256,113 @@ def solar_azimuth(lat, lon, n, LST):
     # Declination of the sun :
     delta = declination(n)
 
+    print("Declination :")
+    print(delta)
+
     # Hour angle :
-    omega = hour_angle(LST, lon, n)
+    omega = hour_angle(LST, lon, n, DS=0)
+
+    print("Omega :")
+    print(omega)
+
+    # Solar altitude :
+    alpha = solar_altitude(lat, lon, n, LST)
+
+    print("Altitude")
+    print(alpha)
+
+    # Computation :
+    gamma = np.rad2deg(np.arcsin(np.cos(np.deg2rad(delta))*np.sin(np.deg2rad(omega))/np.cos(np.deg2rad(alpha))))
+
+    if np.cos(np.deg2rad(omega)) > np.tan(np.deg2rad(delta))/np.tan(np.deg2rad(lat)):
+        if omega < 0:
+            gamma = np.abs(gamma) - 180
+        else:
+            gamma = 180 - gamma
+
+    # Output :
+    return gamma
+
+def solar_azimuth2(lat, lon, n, LST):
+    delta = np.deg2rad(declination(n))
+    omega = np.deg2rad(hour_angle(LST, lon, n))
+    zenith = np.deg2rad(solar_zenith(lat,lon, n, LST))
+
+    gamma = np.sign(omega)*np.abs(np.arccos((np.cos(zenith)*np.sin(np.deg2rad(lat)) - np.sin(delta))/np.sin(zenith)*np.cos(np.deg2rad(lat))))
+
+    print(np.rad2deg(gamma))
+
+def solar_azimuth3(lat, lon, n, LST):
+    """Return the azimuth of the sun"""
+    # Declination of the sun :
+    delta = declination(n)
+
+    # Hour angle :
+    omega = hour_angle(LST, lon, n, DS=0)
 
     # Solar altitude :
     alpha = solar_altitude(lat, lon, n, LST)
 
     # Computation :
-    z = np.rad2deg(np.arcsin(np.cos(np.deg2rad(delta))*np.sin(np.deg2rad(omega))/np.cos(np.deg2rad(alpha))))
+    gamma = np.rad2deg(np.sign(omega)*np.arccos((np.cos(np.deg2rad(delta))*np.cos(np.deg2rad(omega))*np.sin(np.deg2rad(lat)) -
+              np.sin(np.deg2rad(delta))*np.cos(np.deg2rad(lat)))/np.cos(np.deg2rad(alpha))))
 
     # Output :
-    return z
+    return gamma
 
 def sunrise(lat, n):
     """Return the sunrise time"""
+    # Check :
+    if lat < -90 or lat > 90:
+        raise ValueError("Wrong value for lat")
+
+    if n < 0 or n > 365:
+        raise ValueError("Wrong value for n")
+
     # Declination :
     delta = declination(n)
 
     # Computation :
-    omega_s = 1/15*np.arccos(-np.tan(np.deg2rad(lat))*np.tan(np.deg2rad(delta)))
+    h_sr = 12 - 1/15*np.rad2deg(np.arccos(-np.tan(np.deg2rad(lat))*np.tan(np.deg2rad(delta))))
 
     # Output :
-    return omega_s
+    return h_sr
 
-def sunset():
+def sunset(lat, n):
     """Return the sunset time"""
-    pass
+    # Check :
+    if lat < -90 or lat > 90:
+        raise ValueError("Wrong value for lat")
+
+    if n < 0 or n > 365:
+        raise ValueError("Wrong value for n")
+
+    # Declination :
+    delta = declination(n)
+
+    # Computation :
+    h_ss = 12 + 1 / 15 * np.rad2deg(np.arccos(-np.tan(np.deg2rad(lat)) * np.tan(np.deg2rad(delta))))
+
+    # Output :
+    return h_ss
+
+def day_length(lat, n):
+    """Return the length of the day in a specified location"""
+    # Check :
+    if lat < -90 or lat > 90:
+        raise ValueError("Wrong value for lat")
+
+    if n < 0 or n > 365:
+        raise ValueError("Wrong value for n")
+
+    # Declination :
+    delta = declination(n)
+
+    # Computation :
+    h_d = 2/15*np.rad2deg(np.arccos(-np.tan(np.deg2rad(lat)) * np.tan(np.deg2rad(delta))))
+
+    # Output :
+    return h_d
 
 def incident_angle(lat, lon, n, LST, slope, azimuth_s):
     """Return the incident angle for the sun beam at a specified location
